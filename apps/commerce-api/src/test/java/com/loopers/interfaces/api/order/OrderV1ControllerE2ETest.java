@@ -4,13 +4,14 @@ import com.loopers.domain.Money;
 import com.loopers.domain.brand.Brand;
 import com.loopers.domain.coupon.Coupon;
 import com.loopers.domain.coupon.DiscountType;
+import com.loopers.domain.issuedcoupon.IssuedCoupon;
 import com.loopers.domain.order.OrderStatus;
 import com.loopers.domain.product.Product;
-import com.loopers.domain.product.ProductRepository;
 import com.loopers.domain.user.Gender;
 import com.loopers.domain.user.User;
 import com.loopers.infrastructure.brand.BrandJpaRepository;
 import com.loopers.infrastructure.coupon.CouponJpaRepository;
+import com.loopers.infrastructure.issuedcoupon.IssuedCouponJpaRepository;
 import com.loopers.infrastructure.product.ProductJpaRepository;
 import com.loopers.infrastructure.user.UserJpaRepository;
 import com.loopers.interfaces.api.ApiResponse;
@@ -29,6 +30,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -44,6 +46,7 @@ class OrderV1ControllerE2ETest {
     private final ProductJpaRepository productJpaRepository;
     private final BrandJpaRepository brandJpaRepository;
     private final CouponJpaRepository couponJpaRepository;
+    private final IssuedCouponJpaRepository issuedCouponJpaRepository;
     private final DatabaseCleanUp databaseCleanUp;
 
 
@@ -54,6 +57,7 @@ class OrderV1ControllerE2ETest {
             ProductJpaRepository productJpaRepository,
             BrandJpaRepository brandJpaRepository,
             CouponJpaRepository couponJpaRepository,
+            IssuedCouponJpaRepository issuedCouponJpaRepository,
             DatabaseCleanUp databaseCleanUp
     ) {
         this.testRestTemplate = testRestTemplate;
@@ -61,6 +65,7 @@ class OrderV1ControllerE2ETest {
         this.productJpaRepository = productJpaRepository;
         this.brandJpaRepository = brandJpaRepository;
         this.couponJpaRepository = couponJpaRepository;
+        this.issuedCouponJpaRepository = issuedCouponJpaRepository;
         this.databaseCleanUp = databaseCleanUp;
     }
 
@@ -87,9 +92,12 @@ class OrderV1ControllerE2ETest {
             user.chargePoint(Money.of(100000)); // 10만원 충전
             User savedUser = userJpaRepository.save(user);
 
-            Coupon coupon = Coupon.createCoupon("COUPON1", "테스트쿠폰", "테스트 쿠폰입니다",
-                    "2025-11-20", "2025-11-30", DiscountType.RATE, 10);
+            Coupon coupon = Coupon.createCoupon("COUPON123456", "테스트쿠폰", "테스트 쿠폰입니다",
+                    LocalDate.of(2025, 11, 20), LocalDate.of(2025, 11, 30), DiscountType.RATE, 10);
             Coupon savedCoupon = couponJpaRepository.save(coupon);
+
+            IssuedCoupon issuedCoupon = IssuedCoupon.issue(savedUser, savedCoupon);
+            issuedCouponJpaRepository.save(issuedCoupon);
 
             // when
             List<OrderV1Dto.OrderRequest.OrderItemRequest> items = List.of(
@@ -132,10 +140,6 @@ class OrderV1ControllerE2ETest {
             user.chargePoint(Money.of(100000)); // 10만원 충전
             User savedUser = userJpaRepository.save(user);
 
-            Coupon coupon = Coupon.createCoupon("COUPON1", "테스트쿠폰", "테스트 쿠폰입니다",
-                    "2025-11-20", "2025-11-30", DiscountType.RATE, 10);
-            Coupon savedCoupon = couponJpaRepository.save(coupon);
-
             int numberOfThreads = 2;
             ExecutorService executorService = Executors.newFixedThreadPool(numberOfThreads);
 
@@ -143,7 +147,7 @@ class OrderV1ControllerE2ETest {
                     new OrderV1Dto.OrderRequest.OrderItemRequest(savedProduct.getId(), 2) // 20,000원
             );
             OrderV1Dto.OrderRequest request = new OrderV1Dto.OrderRequest(
-                    savedUser.getUserId(), items, savedCoupon.getId()
+                    savedUser.getUserId(), items, null
             );
 
             // when
@@ -164,11 +168,75 @@ class OrderV1ControllerE2ETest {
             executorService.shutdown();
 
             // then
-            User finalUser = userJpaRepository.findByUserIdWithLock(savedUser.getUserId()).orElseThrow();
-            assertThat(finalUser.getPoint().getAmount()).isEqualByComparingTo(BigDecimal.valueOf(64000)); // 100,000 - (20,000 * 0.9) * 2 = 100,000 - 36,000
+            User finalUser = userJpaRepository.findByUserId(savedUser.getUserId());
+            assertThat(finalUser.getPoint().getAmount()).isEqualByComparingTo(BigDecimal.valueOf(60000)); // 100,000 - 20,000 * 2 = 60,000
 
             Product finalProduct = productJpaRepository.findById(savedProduct.getId()).orElseThrow();
             assertThat(finalProduct.getStock().getQuantity()).isEqualTo(96); // 100 - 2 * 2
+        }
+
+        @DisplayName("동일한 쿠폰으로 여러 기기에서 동시에 주문해도, 쿠폰은 단 한번만 사용된다.")
+        @Test
+        void createOrder_withSameCouponConcurrently_usesOnlyOnce() {
+            // given
+            Brand brand = Brand.createBrand("테스트브랜드");
+            Brand savedBrand = brandJpaRepository.save(brand);
+
+            Product product = Product.createProduct("P001", "테스트상품", Money.of(10000), 100, savedBrand);
+            Product savedProduct = productJpaRepository.save(product);
+
+            User user = User.createUser("testuser", "test@test.com", "1990-01-01", Gender.MALE);
+            user.chargePoint(Money.of(100000)); // 10만원 충전
+            User savedUser = userJpaRepository.save(user);
+
+            Coupon coupon = Coupon.createCoupon("COUPON123456", "테스트쿠폰", "테스트 쿠폰입니다",
+                    LocalDate.of(2025, 11, 20), LocalDate.of(2025, 11, 30), DiscountType.RATE, 10);
+            Coupon savedCoupon = couponJpaRepository.save(coupon);
+
+            IssuedCoupon issuedCoupon = IssuedCoupon.issue(savedUser, savedCoupon);
+            IssuedCoupon savedIssuedCoupon = issuedCouponJpaRepository.save(issuedCoupon);
+
+            int numberOfThreads = 2;
+            ExecutorService executorService = Executors.newFixedThreadPool(numberOfThreads);
+
+            List<OrderV1Dto.OrderRequest.OrderItemRequest> items = List.of(
+                    new OrderV1Dto.OrderRequest.OrderItemRequest(savedProduct.getId(), 2) // 20,000원
+            );
+            OrderV1Dto.OrderRequest request = new OrderV1Dto.OrderRequest(
+                    savedUser.getUserId(), items, savedCoupon.getId()
+            );
+
+            // when - 동일한 쿠폰으로 동시에 2번 주문 시도
+            List<CompletableFuture<ResponseEntity<ApiResponse<OrderV1Dto.OrderResponse>>>> futures = new java.util.ArrayList<>();
+            for (int i = 0; i < numberOfThreads; i++) {
+                CompletableFuture<ResponseEntity<ApiResponse<OrderV1Dto.OrderResponse>>> future = CompletableFuture.supplyAsync(() -> {
+                    return testRestTemplate.exchange(
+                            "/api/v1/orders/new",
+                            HttpMethod.POST,
+                            new HttpEntity<>(request),
+                            new ParameterizedTypeReference<ApiResponse<OrderV1Dto.OrderResponse>>() {}
+                    );
+                }, executorService);
+                futures.add(future);
+            }
+
+            List<ResponseEntity<ApiResponse<OrderV1Dto.OrderResponse>>> responses = futures.stream()
+                    .map(CompletableFuture::join)
+                    .toList();
+            executorService.shutdown();
+
+            // then - 동일한 쿠폰으로 여러 기기에서 동시에 주문해도, 쿠폰은 단 한번만 사용되어야 함
+            long successCount = responses.stream().filter(r -> r.getStatusCode() == HttpStatus.OK).count();
+            long failCount = responses.stream().filter(r -> r.getStatusCode() != HttpStatus.OK).count();
+
+            assertThat(successCount).isEqualTo(1); // 1개만 성공
+            assertThat(failCount).isEqualTo(1); // 1개는 실패 (쿠폰 이미 사용됨)
+
+            User finalUser = userJpaRepository.findByUserId(savedUser.getUserId());
+            assertThat(finalUser.getPoint().getAmount()).isEqualByComparingTo(BigDecimal.valueOf(82000)); // 100,000 - (20,000 * 0.9) = 82,000
+
+            Product finalProduct = productJpaRepository.findById(savedProduct.getId()).orElseThrow();
+            assertThat(finalProduct.getStock().getQuantity()).isEqualTo(98); // 100 - 2 (한 번만 주문 성공)
         }
     }
 
@@ -254,9 +322,12 @@ class OrderV1ControllerE2ETest {
             user.chargePoint(Money.of(1000000)); // 충분한 포인트
             User savedUser = userJpaRepository.save(user);
 
-            Coupon coupon = Coupon.createCoupon("COUPON1", "테스트쿠폰", "테스트 쿠폰입니다",
-                    "2025-11-20", "2025-11-30", DiscountType.RATE, 10);
+            Coupon coupon = Coupon.createCoupon("COUPON123456", "테스트쿠폰", "테스트 쿠폰입니다",
+                    LocalDate.of(2025, 11, 20), LocalDate.of(2025, 11, 30), DiscountType.RATE, 10);
             Coupon savedCoupon = couponJpaRepository.save(coupon);
+
+            IssuedCoupon issuedCoupon = IssuedCoupon.issue(savedUser, savedCoupon);
+            issuedCouponJpaRepository.save(issuedCoupon);
 
             // when
             List<OrderV1Dto.OrderRequest.OrderItemRequest> items = List.of(
@@ -296,9 +367,12 @@ class OrderV1ControllerE2ETest {
             user.chargePoint(Money.of(5000)); // 부족한 포인트
             User savedUser = userJpaRepository.save(user);
 
-            Coupon coupon = Coupon.createCoupon("COUPON1", "테스트쿠폰", "테스트 쿠폰입니다",
-                    "2025-11-20", "2025-11-30", DiscountType.RATE, 10);
+            Coupon coupon = Coupon.createCoupon("COUPON123456", "테스트쿠폰", "테스트 쿠폰입니다",
+                    LocalDate.of(2025, 11, 20), LocalDate.of(2025, 11, 30), DiscountType.RATE, 10);
             Coupon savedCoupon = couponJpaRepository.save(coupon);
+
+            IssuedCoupon issuedCoupon = IssuedCoupon.issue(savedUser, savedCoupon);
+            issuedCouponJpaRepository.save(issuedCoupon);
 
             // when
             List<OrderV1Dto.OrderRequest.OrderItemRequest> items = List.of(
