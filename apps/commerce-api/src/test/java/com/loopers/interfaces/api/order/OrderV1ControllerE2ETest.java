@@ -2,13 +2,17 @@ package com.loopers.interfaces.api.order;
 
 import com.loopers.domain.Money;
 import com.loopers.domain.brand.Brand;
-import com.loopers.domain.brand.BrandRepository;
+import com.loopers.domain.coupon.Coupon;
+import com.loopers.domain.coupon.DiscountType;
 import com.loopers.domain.order.OrderStatus;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductRepository;
 import com.loopers.domain.user.Gender;
 import com.loopers.domain.user.User;
-import com.loopers.domain.user.UserRepository;
+import com.loopers.infrastructure.brand.BrandJpaRepository;
+import com.loopers.infrastructure.coupon.CouponJpaRepository;
+import com.loopers.infrastructure.product.ProductJpaRepository;
+import com.loopers.infrastructure.user.UserJpaRepository;
 import com.loopers.interfaces.api.ApiResponse;
 import com.loopers.utils.DatabaseCleanUp;
 import org.junit.jupiter.api.AfterEach;
@@ -36,24 +40,27 @@ import static org.assertj.core.api.Assertions.assertThat;
 class OrderV1ControllerE2ETest {
 
     private final TestRestTemplate testRestTemplate;
-    private final UserRepository userRepository;
-    private final ProductRepository productRepository;
-    private final BrandRepository brandRepository;
+    private final UserJpaRepository userJpaRepository;
+    private final ProductJpaRepository productJpaRepository;
+    private final BrandJpaRepository brandJpaRepository;
+    private final CouponJpaRepository couponJpaRepository;
     private final DatabaseCleanUp databaseCleanUp;
 
 
     @Autowired
     public OrderV1ControllerE2ETest(
             TestRestTemplate testRestTemplate,
-            UserRepository userRepository,
-            ProductRepository productRepository,
-            BrandRepository brandRepository,
+            UserJpaRepository userJpaRepository,
+            ProductJpaRepository productJpaRepository,
+            BrandJpaRepository brandJpaRepository,
+            CouponJpaRepository couponJpaRepository,
             DatabaseCleanUp databaseCleanUp
     ) {
         this.testRestTemplate = testRestTemplate;
-        this.userRepository = userRepository;
-        this.productRepository = productRepository;
-        this.brandRepository = brandRepository;
+        this.userJpaRepository = userJpaRepository;
+        this.productJpaRepository = productJpaRepository;
+        this.brandJpaRepository = brandJpaRepository;
+        this.couponJpaRepository = couponJpaRepository;
         this.databaseCleanUp = databaseCleanUp;
     }
 
@@ -71,14 +78,18 @@ class OrderV1ControllerE2ETest {
         void createOrderSuccess_returnOrderInfo() {
             // given
             Brand brand = Brand.createBrand("테스트브랜드");
-            Brand savedBrand = brandRepository.registerBrand(brand);
+            Brand savedBrand = brandJpaRepository.save(brand);
 
             Product product = Product.createProduct("P001", "테스트상품", Money.of(10000), 100, savedBrand);
-            Product savedProduct = productRepository.registerProduct(product);
+            Product savedProduct = productJpaRepository.save(product);
 
             User user = User.createUser("testuser", "test@test.com", "1990-01-01", Gender.MALE);
             user.chargePoint(Money.of(100000)); // 10만원 충전
-            User savedUser = userRepository.save(user);
+            User savedUser = userJpaRepository.save(user);
+
+            Coupon coupon = Coupon.createCoupon("COUPON1", "테스트쿠폰", "테스트 쿠폰입니다",
+                    "2025-11-20", "2025-11-30", DiscountType.RATE, 10);
+            Coupon savedCoupon = couponJpaRepository.save(coupon);
 
             // when
             List<OrderV1Dto.OrderRequest.OrderItemRequest> items = List.of(
@@ -87,7 +98,8 @@ class OrderV1ControllerE2ETest {
 
             OrderV1Dto.OrderRequest request = new OrderV1Dto.OrderRequest(
                     savedUser.getUserId(),
-                    items
+                    items,
+                    savedCoupon.getId()
             );
 
             ResponseEntity<ApiResponse<OrderV1Dto.OrderResponse>> response = testRestTemplate.exchange(
@@ -103,7 +115,7 @@ class OrderV1ControllerE2ETest {
             assertThat(response.getBody().data()).isNotNull();
             assertThat(response.getBody().data().id()).isNotNull();
             assertThat(response.getBody().data().status()).isEqualTo(OrderStatus.INIT);
-            assertThat(response.getBody().data().totalPrice()).isEqualByComparingTo(BigDecimal.valueOf(20000)); // 10,000 * 2
+            assertThat(response.getBody().data().totalPrice()).isEqualByComparingTo(BigDecimal.valueOf(18000)); // 10,000 * 2 * 0.9 (10% 할인)
         }
 
         @DisplayName("동일한 유저가 동시에 주문을 요청해도 포인트가 정상적으로 차감된다.")
@@ -111,14 +123,18 @@ class OrderV1ControllerE2ETest {
         void createOrder_withConcurrentRequests_deductsPointsCorrectly() {
             // given
             Brand brand = Brand.createBrand("테스트브랜드");
-            Brand savedBrand = brandRepository.registerBrand(brand);
+            Brand savedBrand = brandJpaRepository.save(brand);
 
             Product product = Product.createProduct("P001", "테스트상품", Money.of(10000), 100, savedBrand);
-            Product savedProduct = productRepository.registerProduct(product);
+            Product savedProduct = productJpaRepository.save(product);
 
             User user = User.createUser("testuser", "test@test.com", "1990-01-01", Gender.MALE);
             user.chargePoint(Money.of(100000)); // 10만원 충전
-            User savedUser = userRepository.save(user);
+            User savedUser = userJpaRepository.save(user);
+
+            Coupon coupon = Coupon.createCoupon("COUPON1", "테스트쿠폰", "테스트 쿠폰입니다",
+                    "2025-11-20", "2025-11-30", DiscountType.RATE, 10);
+            Coupon savedCoupon = couponJpaRepository.save(coupon);
 
             int numberOfThreads = 2;
             ExecutorService executorService = Executors.newFixedThreadPool(numberOfThreads);
@@ -126,7 +142,9 @@ class OrderV1ControllerE2ETest {
             List<OrderV1Dto.OrderRequest.OrderItemRequest> items = List.of(
                     new OrderV1Dto.OrderRequest.OrderItemRequest(savedProduct.getId(), 2) // 20,000원
             );
-            OrderV1Dto.OrderRequest request = new OrderV1Dto.OrderRequest(savedUser.getUserId(), items);
+            OrderV1Dto.OrderRequest request = new OrderV1Dto.OrderRequest(
+                    savedUser.getUserId(), items, savedCoupon.getId()
+            );
 
             // when
             List<CompletableFuture<Void>> futures = new java.util.ArrayList<>();
@@ -146,10 +164,10 @@ class OrderV1ControllerE2ETest {
             executorService.shutdown();
 
             // then
-            User finalUser = userRepository.findUserByUserId(savedUser.getUserId()).orElseThrow();
-            assertThat(finalUser.getPoint().getAmount()).isEqualByComparingTo(BigDecimal.valueOf(60000)); // 100,000 - 20,000 * 2
+            User finalUser = userJpaRepository.findByUserIdWithLock(savedUser.getUserId()).orElseThrow();
+            assertThat(finalUser.getPoint().getAmount()).isEqualByComparingTo(BigDecimal.valueOf(64000)); // 100,000 - (20,000 * 0.9) * 2 = 100,000 - 36,000
 
-            Product finalProduct = productRepository.findById(savedProduct.getId()).orElseThrow();
+            Product finalProduct = productJpaRepository.findById(savedProduct.getId()).orElseThrow();
             assertThat(finalProduct.getStock().getQuantity()).isEqualTo(96); // 100 - 2 * 2
         }
     }
@@ -163,10 +181,10 @@ class OrderV1ControllerE2ETest {
         void createOrder_withNonExistentUser_fail() {
             // given
             Brand brand = Brand.createBrand("테스트브랜드");
-            Brand savedBrand = brandRepository.registerBrand(brand);
+            Brand savedBrand = brandJpaRepository.save(brand);
 
             Product product = Product.createProduct("P001", "테스트상품", Money.of(10000), 100, savedBrand);
-            Product savedProduct = productRepository.registerProduct(product);
+            Product savedProduct = productJpaRepository.save(product);
 
             // when
             List<OrderV1Dto.OrderRequest.OrderItemRequest> items = List.of(
@@ -175,7 +193,7 @@ class OrderV1ControllerE2ETest {
 
             OrderV1Dto.OrderRequest request = new OrderV1Dto.OrderRequest(
                     "nonExistentUser", // 존재하지 않는 사용자
-                    items
+                    items, null
             );
 
             ResponseEntity<ApiResponse<OrderV1Dto.OrderResponse>> response = testRestTemplate.exchange(
@@ -197,7 +215,7 @@ class OrderV1ControllerE2ETest {
             // given
             User user = User.createUser("testuser", "test@test.com", "1990-01-01", Gender.MALE);
             user.chargePoint(Money.of(100000));
-            User savedUser = userRepository.save(user);
+            User savedUser = userJpaRepository.save(user);
 
             // when
             List<OrderV1Dto.OrderRequest.OrderItemRequest> items = List.of(
@@ -206,7 +224,7 @@ class OrderV1ControllerE2ETest {
 
             OrderV1Dto.OrderRequest request = new OrderV1Dto.OrderRequest(
                     savedUser.getUserId(),
-                    items
+                    items, null
             );
 
             ResponseEntity<ApiResponse<OrderV1Dto.OrderResponse>> response = testRestTemplate.exchange(
@@ -227,14 +245,18 @@ class OrderV1ControllerE2ETest {
         void createOrder_withInsufficientStock_fail() {
             // given
             Brand brand = Brand.createBrand("테스트브랜드");
-            Brand savedBrand = brandRepository.registerBrand(brand);
+            Brand savedBrand = brandJpaRepository.save(brand);
 
             Product product = Product.createProduct("P001", "테스트상품", Money.of(10000), 5, savedBrand); // 재고 5개
-            Product savedProduct = productRepository.registerProduct(product);
+            Product savedProduct = productJpaRepository.save(product);
 
             User user = User.createUser("testuser", "test@test.com", "1990-01-01", Gender.MALE);
             user.chargePoint(Money.of(1000000)); // 충분한 포인트
-            User savedUser = userRepository.save(user);
+            User savedUser = userJpaRepository.save(user);
+
+            Coupon coupon = Coupon.createCoupon("COUPON1", "테스트쿠폰", "테스트 쿠폰입니다",
+                    "2025-11-20", "2025-11-30", DiscountType.RATE, 10);
+            Coupon savedCoupon = couponJpaRepository.save(coupon);
 
             // when
             List<OrderV1Dto.OrderRequest.OrderItemRequest> items = List.of(
@@ -243,7 +265,8 @@ class OrderV1ControllerE2ETest {
 
             OrderV1Dto.OrderRequest request = new OrderV1Dto.OrderRequest(
                     savedUser.getUserId(),
-                    items
+                    items,
+                    savedCoupon.getId()
             );
 
             ResponseEntity<ApiResponse<OrderV1Dto.OrderResponse>> response = testRestTemplate.exchange(
@@ -264,14 +287,18 @@ class OrderV1ControllerE2ETest {
         void createOrder_withInsufficientPoint_fail() {
             // given
             Brand brand = Brand.createBrand("테스트브랜드");
-            Brand savedBrand = brandRepository.registerBrand(brand);
+            Brand savedBrand = brandJpaRepository.save(brand);
 
             Product product = Product.createProduct("P001", "테스트상품", Money.of(10000), 100, savedBrand);
-            Product savedProduct = productRepository.registerProduct(product);
+            Product savedProduct = productJpaRepository.save(product);
 
             User user = User.createUser("testuser", "test@test.com", "1990-01-01", Gender.MALE);
             user.chargePoint(Money.of(5000)); // 부족한 포인트
-            User savedUser = userRepository.save(user);
+            User savedUser = userJpaRepository.save(user);
+
+            Coupon coupon = Coupon.createCoupon("COUPON1", "테스트쿠폰", "테스트 쿠폰입니다",
+                    "2025-11-20", "2025-11-30", DiscountType.RATE, 10);
+            Coupon savedCoupon = couponJpaRepository.save(coupon);
 
             // when
             List<OrderV1Dto.OrderRequest.OrderItemRequest> items = List.of(
@@ -280,7 +307,8 @@ class OrderV1ControllerE2ETest {
 
             OrderV1Dto.OrderRequest request = new OrderV1Dto.OrderRequest(
                     savedUser.getUserId(),
-                    items
+                    items,
+                    savedCoupon.getId()
             );
 
             ResponseEntity<ApiResponse<OrderV1Dto.OrderResponse>> response = testRestTemplate.exchange(
@@ -301,14 +329,14 @@ class OrderV1ControllerE2ETest {
         void createOrder_withZeroQuantity_fail() {
             // given
             Brand brand = Brand.createBrand("테스트브랜드");
-            Brand savedBrand = brandRepository.registerBrand(brand);
+            Brand savedBrand = brandJpaRepository.save(brand);
 
             Product product = Product.createProduct("P001", "테스트상품", Money.of(10000), 100, savedBrand);
-            Product savedProduct = productRepository.registerProduct(product);
+            Product savedProduct = productJpaRepository.save(product);
 
             User user = User.createUser("testuser", "test@test.com", "1990-01-01", Gender.MALE);
             user.chargePoint(Money.of(100000));
-            User savedUser = userRepository.save(user);
+            User savedUser = userJpaRepository.save(user);
 
             // when
             List<OrderV1Dto.OrderRequest.OrderItemRequest> items = List.of(
@@ -317,7 +345,8 @@ class OrderV1ControllerE2ETest {
 
             OrderV1Dto.OrderRequest request = new OrderV1Dto.OrderRequest(
                     savedUser.getUserId(),
-                    items
+                    items,
+                    null
             );
 
             ResponseEntity<ApiResponse<OrderV1Dto.OrderResponse>> response = testRestTemplate.exchange(
@@ -338,14 +367,14 @@ class OrderV1ControllerE2ETest {
         void createOrder_withNegativeQuantity_fail() {
             // given
             Brand brand = Brand.createBrand("테스트브랜드");
-            Brand savedBrand = brandRepository.registerBrand(brand);
+            Brand savedBrand = brandJpaRepository.save(brand);
 
             Product product = Product.createProduct("P001", "테스트상품", Money.of(10000), 100, savedBrand);
-            Product savedProduct = productRepository.registerProduct(product);
+            Product savedProduct = productJpaRepository.save(product);
 
             User user = User.createUser("testuser", "test@test.com", "1990-01-01", Gender.MALE);
             user.chargePoint(Money.of(100000));
-            User savedUser = userRepository.save(user);
+            User savedUser = userJpaRepository.save(user);
 
             // when
             List<OrderV1Dto.OrderRequest.OrderItemRequest> items = List.of(
@@ -354,7 +383,8 @@ class OrderV1ControllerE2ETest {
 
             OrderV1Dto.OrderRequest request = new OrderV1Dto.OrderRequest(
                     savedUser.getUserId(),
-                    items
+                    items,
+                    null
             );
 
             ResponseEntity<ApiResponse<OrderV1Dto.OrderResponse>> response = testRestTemplate.exchange(
@@ -376,12 +406,13 @@ class OrderV1ControllerE2ETest {
             // given
             User user = User.createUser("testuser", "test@test.com", "1990-01-01", Gender.MALE);
             user.chargePoint(Money.of(100000));
-            User savedUser = userRepository.save(user);
+            User savedUser = userJpaRepository.save(user);
 
             // when
             OrderV1Dto.OrderRequest request = new OrderV1Dto.OrderRequest(
                     savedUser.getUserId(),
                     List.of() // 빈 항목 리스트
+                    ,null
             );
 
             ResponseEntity<ApiResponse<OrderV1Dto.OrderResponse>> response = testRestTemplate.exchange(

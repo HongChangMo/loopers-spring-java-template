@@ -58,6 +58,22 @@ public class Coupon extends BaseEntity {
         this.currentIssuanceCount = 0;
     }
 
+    public static Coupon createCoupon(
+            String code, String name, String description,
+            String validStartDate, String validEndDate, DiscountType discountType, int value) {
+
+        DiscountPolicy discountPolicy = new DiscountPolicy(discountType, value);
+
+        return Coupon.builder()
+                .code(code)
+                .name(name)
+                .description(description)
+                .validStartDate(validStartDate)
+                .validEndDate(validEndDate)
+                .discountPolicy(discountPolicy)
+                .build();
+    }
+
     public void increaseIssuanceCount() {
         if (maxIssuanceLimit != null && currentIssuanceCount >= maxIssuanceLimit) {
             throw new CoreException(ErrorType.CONFLICT, "쿠폰이 모두 소진되었습니다.");

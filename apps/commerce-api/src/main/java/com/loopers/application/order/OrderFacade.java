@@ -26,7 +26,9 @@ public class OrderFacade {
     private final ProductRepository productRepository;
 
     @Transactional
-    public OrderInfo createOrder(String userId, List<OrderV1Dto.OrderRequest.OrderItemRequest> items) {
+    public OrderInfo createOrder(String userId,
+                                 List<OrderV1Dto.OrderRequest.OrderItemRequest> items,
+                                 Long couponId) {
         // User 정보 조회
         User user = userRepository.findUserByUserIdWithLock(userId)
                 .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "사용자 정보가 없습니다"));

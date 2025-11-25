@@ -14,7 +14,7 @@ import java.util.Optional;
 @Component
 public class ProductRepositoryImpl implements ProductRepository {
 
-    private final ProductJpaRepository productJpaRepository;
+    private final com.loopers.infrastructure.product.ProductJpaRepository productJpaRepository;
 
     @Override
     public Product registerProduct(Product product) {
