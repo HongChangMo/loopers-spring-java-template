@@ -41,4 +41,9 @@ public class ProductService {
             throw new CoreException(ErrorType.BAD_REQUEST, "중복된 상품 코드 오류");
         }
     }
+
+    public Product getProductWithLock(Long productId) {
+        return productRepository.findByIdWithLock(productId)
+                .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "상품 정보가 없습니다"));
+    }
 }
