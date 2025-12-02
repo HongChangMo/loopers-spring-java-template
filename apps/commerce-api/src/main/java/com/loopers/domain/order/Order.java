@@ -45,7 +45,7 @@ public class Order extends BaseEntity {
 
         // 쿠폰 할인 적용
         if (coupon != null) {
-            calculatedTotal = coupon.getDiscountPolicy().applyDiscount(calculatedTotal);
+            calculatedTotal = coupon.getDiscount().applyDiscount(calculatedTotal);
         }
 
         // 포인트 부족 검증
@@ -67,7 +67,7 @@ public class Order extends BaseEntity {
 
         // 쿠폰 할인 적용 (최종 totalPrice에 반영)
         if (coupon != null) {
-            this.totalPrice = coupon.getDiscountPolicy().applyDiscount(this.totalPrice);
+            this.totalPrice = coupon.getDiscount().applyDiscount(this.totalPrice);
         }
     }
 
