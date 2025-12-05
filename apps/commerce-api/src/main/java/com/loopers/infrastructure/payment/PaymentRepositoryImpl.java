@@ -33,4 +33,9 @@ public class PaymentRepositoryImpl implements PaymentRepository {
                 maxCheckCount
         );
     }
+
+    @Override
+    public Optional<Payment> findByPaymentId(String paymentId) {
+        return paymentJpaRepository.findByPaymentId(paymentId);
+    }
 }

@@ -27,7 +27,6 @@ public class PaymentCallbackController {
         log.info("=== Payment Callback Received ===");
         log.info("TransactionKey: {}", request.transactionKey());
         log.info("Status: {}", request.status());
-        log.info("OrderId: {}", request.orderId());
 
         // Presentation Dto → Application Dto 변환
         PaymentCallbackInfo callbackInfo = new PaymentCallbackInfo(

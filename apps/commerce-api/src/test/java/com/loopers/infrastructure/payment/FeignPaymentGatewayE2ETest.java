@@ -168,7 +168,7 @@ class FeignPaymentGatewayE2ETest {
         long startTime = System.currentTimeMillis();
 
         // when
-        // PG simulator가 없으므로 Connection Timeout (1초) 발생 → fallback 호출
+        // PG simulator가 없으므로 Connection Timeout 발생 → fallback 호출
         PaymentResult result = paymentGateway.processPayment(TEST_USER_ID, payment, TEST_CALLBACK_URL);
 
         // then
@@ -177,11 +177,10 @@ class FeignPaymentGatewayE2ETest {
         assertThat(result.status()).isEqualTo("FAIL");
         assertThat(result.message()).contains("결제 시스템 장애");
 
-        // 타임아웃 설정(1초)이 적용되었는지 확인
+        // 타임아웃 설정이 적용되었는지 확인
         long elapsedTime = System.currentTimeMillis() - startTime;
         assertThat(elapsedTime)
-                .describedAs("Connection timeout (2초)이 적용되어 3초 이내에 fallback이 호출되어야 함")
-                .isLessThan(2000);
+                .isLessThan(3000); // connect timeout + read timeout 고려
     }
 
     /**

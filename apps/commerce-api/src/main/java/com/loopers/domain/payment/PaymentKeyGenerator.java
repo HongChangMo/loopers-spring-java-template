@@ -15,13 +15,13 @@ public class PaymentKeyGenerator {
 
     public static String generateKeyForPoint() {
         LocalDateTime now = LocalDateTime.now();
-        String uuid = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+        String uuid = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         return PREFIX_POINT + now.format(FORMATTER) + uuid;
     }
 
     public static String generateKeyForCard() {
         LocalDateTime now = LocalDateTime.now();
-        String uuid = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+        String uuid = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         return PREFIX_CARD + now.format(FORMATTER) + uuid;
     }
 }

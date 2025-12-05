@@ -33,4 +33,6 @@ public interface PaymentRepository {
      * @return PROCESSING 상태인 Payment 목록
      */
     List<Payment> findProcessingPaymentsForStatusCheck(LocalDateTime thresholdTime, int maxCheckCount);
+
+    Optional<Payment> findByPaymentId(String paymentId);
 }

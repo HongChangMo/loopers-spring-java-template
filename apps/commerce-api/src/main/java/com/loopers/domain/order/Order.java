@@ -107,13 +107,18 @@ public class Order extends BaseEntity {
     }
 
     public void completeOrder() {
-        if (this.status != OrderStatus.RECEIVED && this.status != OrderStatus.PAYMENT_COMPLETE) {
+        if (this.status != OrderStatus.INIT &&
+            this.status != OrderStatus.RECEIVED &&
+            this.status != OrderStatus.PAYMENT_COMPLETE) {
             throw new CoreException(ErrorType.BAD_REQUEST, "주문을 완료할 수 없는 상태입니다");
         }
         this.status = OrderStatus.COMPLETED;
     }
 
     public void cancelOrder() {
+        if (this.status == OrderStatus.CANCELED) {
+            return;  // 이미 취소됨, 멱등성 보장
+        }
         if (this.status == OrderStatus.COMPLETED) {
             throw new CoreException(ErrorType.BAD_REQUEST, "이미 완료된 주문은 취소할 수 없습니다");
         }

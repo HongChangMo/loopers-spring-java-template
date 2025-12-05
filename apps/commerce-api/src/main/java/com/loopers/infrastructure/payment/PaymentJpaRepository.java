@@ -39,4 +39,6 @@ public interface PaymentJpaRepository extends JpaRepository<Payment, String> {
             @Param("thresholdTime") LocalDateTime thresholdTime,
             @Param("maxCheckCount") Integer maxCheckCount
     );
+
+    Optional<Payment> findByPaymentId(String paymentId);
 }

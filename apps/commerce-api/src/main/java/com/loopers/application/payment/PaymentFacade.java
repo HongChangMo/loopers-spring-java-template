@@ -60,6 +60,12 @@ public class PaymentFacade {
         log.info("결제 실패 처리 시작 payment - PaymentId: {}, Reason: {}",
                 payment.getPaymentId(), reason);
 
+        // 멱등성 보장: 이미 실패 처리된 결제는 스킵
+        if (payment.getStatus() == com.loopers.domain.payment.PaymentStatus.FAILED) {
+            log.warn("이미 실패 처리된 결제입니다 - PaymentId: {}", payment.getPaymentId());
+            return;
+        }
+
         // 결제 실패 처리 (도메인 로직)
         payment.failPayment(reason);
 
@@ -79,6 +85,12 @@ public class PaymentFacade {
      * 결제 실패 시 주문 생성 과정에서 차감된 재고, 포인트, 쿠폰을 복구
      */
     private void executeCompensationTransaction(Order order) {
+        // 이미 취소된 주문이면 보상 트랜잭션 스킵 (멱등성 보장)
+        if (order.getStatus() == com.loopers.domain.order.OrderStatus.CANCELED) {
+            log.info("이미 보상 트랜잭션이 실행된 주문입니다 - OrderId: {}", order.getId());
+            return;
+        }
+
         log.info("보상 트랜잭션 시작 OrderId: {}", order.getId());
 
         // 1. 재고 복구
