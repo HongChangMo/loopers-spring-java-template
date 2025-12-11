@@ -132,7 +132,7 @@ class OrderFacadeIntegrationTest {
     void createOrder_decreaseStock_success() {
         // given
         String userId = "testUser";
-        User user = User.createUser(userId, "test@test.com", "1990-01-01", Gender.MALE);
+        User user = User.createUser(userId, "test1@test.com", "1990-01-01", Gender.MALE);
         user.chargePoint(Money.of(100000));
         userRepository.save(user);
 
@@ -168,15 +168,15 @@ class OrderFacadeIntegrationTest {
     @Test
     void createOrder_usePoint_success() {
         // given
-        String userId = "testUser";
-        User user = User.createUser(userId, "test@test.com", "1990-01-01", Gender.MALE);
+        String userId = "testUser1";
+        User user = User.createUser(userId, "test2@test.com", "1990-01-01", Gender.MALE);
         user.chargePoint(Money.of(100000));
         User savedUser = userRepository.save(user);
 
-        Brand brand = Brand.createBrand("테스트브랜드");
+        Brand brand = Brand.createBrand("테스트브랜드2");
         Brand savedBrand = brandRepository.registerBrand(brand);
 
-        Product product = Product.createProduct("P001", "테스트상품", Money.of(25000), 100, savedBrand);
+        Product product = Product.createProduct("P0012", "테스트상품2", Money.of(25000), 100, savedBrand);
         Product savedProduct = productRepository.registerProduct(product);
 
         OrderCommand command = new OrderCommand(
@@ -206,7 +206,7 @@ class OrderFacadeIntegrationTest {
     void createOrder_withMultipleProducts_success() {
         // given
         String userId = "testUser";
-        User user = User.createUser(userId, "test@test.com", "1990-01-01", Gender.MALE);
+        User user = User.createUser(userId, "test3@test.com", "1990-01-01", Gender.MALE);
         user.chargePoint(Money.of(200000));
         User savedUser = userRepository.save(user);
 
@@ -255,7 +255,7 @@ class OrderFacadeIntegrationTest {
     void createOrder_saveOrder_success() {
         // given
         String userId = "testUser";
-        User user = User.createUser(userId, "test@test.com", "1990-01-01", Gender.MALE);
+        User user = User.createUser(userId, "test4@test.com", "1990-01-01", Gender.MALE);
         user.chargePoint(Money.of(100000));
         userRepository.save(user);
 
