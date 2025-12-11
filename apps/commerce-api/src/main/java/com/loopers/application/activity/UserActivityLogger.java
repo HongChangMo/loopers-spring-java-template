@@ -24,13 +24,13 @@ public class UserActivityLogger {
     @EventListener
     public void logActivity(UserActivityEvent event) {
         try {
-            log.info("USER_ACTIVITY userId={} action={} resourceType={} resourceId={} timestamp={} metadata={}",
+            log.info("USER_ACTIVITY userId={} action={} resourceType={} resourceId={} timestamp={}",
                     event.userId(),
                     event.action(),
                     event.resourceType(),
                     event.resourceId(),
-                    event.timestamp(),
-                    event.metadata());
+                    event.timestamp()
+            );
 
         } catch (Exception e) {
             // 로깅 실패해도 비즈니스 로직에 영향 없도록

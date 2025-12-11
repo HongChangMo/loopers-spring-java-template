@@ -17,7 +17,6 @@ public record UserActivityEvent(
         String action,          // 행동 타입
         String resourceType,    // 리소스 타입 (ex. "PRODUCT", "ORDER")
         Long resourceId,        // 리소스 ID
-        Map<String, Object> metadata,
         LocalDateTime timestamp
 ) {
     public static UserActivityEvent of(String userId, String action,
@@ -27,7 +26,6 @@ public record UserActivityEvent(
                 .action(action)
                 .resourceType(resourceType)
                 .resourceId(resourceId)
-                .metadata(new HashMap<>())
                 .timestamp(LocalDateTime.now())
                 .build();
     }
