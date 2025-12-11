@@ -3,6 +3,7 @@ package com.loopers.domain.like;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.user.User;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ProductLikeRepository {
@@ -15,4 +16,8 @@ public interface ProductLikeRepository {
     boolean existsByLikeUserAndLikeProduct(User user, Product product);
 
     Optional<ProductLike> findById(Long likeId);
+
+    long countByProduct(Product product);
+
+    List<Long> findDistinctProductIds();
 }
