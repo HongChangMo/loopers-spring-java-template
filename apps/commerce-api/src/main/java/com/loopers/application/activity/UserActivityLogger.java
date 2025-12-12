@@ -2,9 +2,10 @@ package com.loopers.application.activity;
 
 import com.loopers.domain.activity.event.UserActivityEvent;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
  * 사용자 행동 로깅 전용 Listener
@@ -20,8 +21,8 @@ public class UserActivityLogger {
      *
      * @Async로 비동기 처리하여 메인 비즈니스 로직에 영향 없음
      */
-    @Async
-    @EventListener
+    @Async("taskExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void logActivity(UserActivityEvent event) {
         try {
             log.info("USER_ACTIVITY userId={} action={} resourceType={} resourceId={} timestamp={}",

@@ -90,7 +90,7 @@ public class PaymentFacade {
         Order order = payment.getOrder();
 
         // 보상 트랜잭션 실행 (포인트 환불 포함)
-        compensationService.compensateOrderWithPointRefund(order);
+        compensationService.compensateOrderWithPointRefund(order.getId());
 
         eventPublisher.publishEvent(
                 OrderFailureEvent.of(

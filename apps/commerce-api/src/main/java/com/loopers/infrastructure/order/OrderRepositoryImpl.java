@@ -22,4 +22,9 @@ public class OrderRepositoryImpl implements OrderRepository {
     public Order save(Order order) {
         return orderJpaRepository.save(order);
     }
+
+    @Override
+    public Optional<Order> findOrderWithDetailsById(Long id) {
+        return orderJpaRepository.findOrderWithDetailsById(id);
+    }
 }

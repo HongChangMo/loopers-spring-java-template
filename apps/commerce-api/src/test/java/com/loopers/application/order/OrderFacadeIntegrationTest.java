@@ -19,10 +19,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
-import org.testcontainers.shaded.org.awaitility.Awaitility;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -33,8 +30,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertAll;
-import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 @ActiveProfiles("test")
 @SpringBootTest
@@ -45,8 +42,6 @@ class OrderFacadeIntegrationTest {
     private DatabaseCleanUp databaseCleanUp;
     @Autowired
     private EntityManager entityManager;
-    @Autowired
-    private ApplicationEventPublisher eventPublisher;
     @Autowired
     private UserRepository userRepository;
     @Autowired

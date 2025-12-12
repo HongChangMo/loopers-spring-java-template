@@ -14,16 +14,20 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.util.concurrent.TimeUnit;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 
 @SpringBootTest
 @ActiveProfiles("test")
 class UserActivityLoggerIntegrationTest {
+
+    @SpyBean
+    private UserActivityLogger userActivityLogger;
 
     @Autowired
     private ProductLikeService productLikeService;
@@ -59,11 +63,13 @@ class UserActivityLoggerIntegrationTest {
         productLikeService.addLike(savedUser, savedProduct);
 
         // then: 비동기 로깅을 위한 대기
-        TimeUnit.MILLISECONDS.sleep(500);
-
-        // 로그에서 다음과 같은 내용이 출력되는지 확인:
-        // USER_ACTIVITY userId=testUser action=PRODUCT_LIKE_ADDED resourceType=PRODUCT resourceId=...
-        assertThat(savedProduct.getId()).isNotNull();
+        verify(userActivityLogger, timeout(1000).times(1))
+                .logActivity(argThat(event ->
+                        event.userId().equals("testUser") &&
+                                event.action().equals("PRODUCT_LIKE_ADDED") &&
+                                event.resourceType().equals("PRODUCT") &&
+                                event.resourceId().equals(savedProduct.getId())
+                ));
     }
 
     @Test
@@ -81,10 +87,12 @@ class UserActivityLoggerIntegrationTest {
         eventPublisher.publishEvent(event);
 
         // then: 비동기 로깅을 위한 대기
-        TimeUnit.MILLISECONDS.sleep(500);
-
-        // 로그에서 다음과 같은 내용이 출력되는지 확인:
-        // USER_ACTIVITY userId=testUser action=TEST_ACTION resourceType=TEST_RESOURCE resourceId=123
-        assertThat(event.userId()).isEqualTo("testUser");
+        verify(userActivityLogger, timeout(1000).times(1))
+                .logActivity(argThat(e ->
+                        e.userId().equals("testUser") &&
+                                e.action().equals("TEST_ACTION") &&
+                                e.resourceType().equals("TEST_RESOURCE") &&
+                                e.resourceId().equals(123L)
+                ));
     }
 }

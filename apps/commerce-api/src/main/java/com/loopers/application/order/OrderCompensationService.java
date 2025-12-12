@@ -1,6 +1,7 @@
 package com.loopers.application.order;
 
 import com.loopers.domain.order.Order;
+import com.loopers.domain.order.OrderService;
 import com.loopers.domain.order.OrderStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class OrderCompensationService {
 
+    private final OrderService orderService;
+
     /**
      * 기본 주문 보상 트랜잭션
      *
@@ -30,10 +33,12 @@ public class OrderCompensationService {
      * - 쿠폰 복구
      * - 주문 취소
      *
-     * @param order 보상 대상 주문
+     * @param orderId 보상 대상 주문
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void compensateOrder(Order order) {
+    public void compensateOrder(Long orderId) {
+        Order order = orderService.getOrderWithDetailsById(orderId);
+
         // 멱등성 보장: 이미 취소된 주문은 스킵
         if (order.getStatus() == OrderStatus.CANCELED) {
             log.info("이미 취소된 주문입니다 - OrderId: {}", order.getId());
@@ -68,10 +73,12 @@ public class OrderCompensationService {
      * - 기본 보상 트랜잭션 실행
      * - 포인트 환불 추가
      *
-     * @param order 보상 대상 주문
+     * @param orderId 보상 대상 주문
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void compensateOrderWithPointRefund(Order order) {
+    public void compensateOrderWithPointRefund(Long orderId) {
+        Order order = orderService.getOrderWithDetailsById(orderId);
+
         // 멱등성 보장: 이미 취소된 주문은 스킵
         if (order.getStatus() == OrderStatus.CANCELED) {
             log.info("이미 취소된 주문입니다 - OrderId: {}", order.getId());

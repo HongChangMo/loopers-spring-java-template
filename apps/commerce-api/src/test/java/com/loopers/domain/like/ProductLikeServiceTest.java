@@ -22,8 +22,8 @@ import org.springframework.test.context.ActiveProfiles;
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 @ActiveProfiles("test")
 @SpringBootTest

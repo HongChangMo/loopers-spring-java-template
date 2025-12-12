@@ -20,4 +20,8 @@ public class OrderService {
         return orderRepository.save(order);
     }
 
+    public Order getOrderWithDetailsById(Long orderId) {
+        return orderRepository.findOrderWithDetailsById(orderId)
+                .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "주문 정보가 없습니다"));
+    }
 }

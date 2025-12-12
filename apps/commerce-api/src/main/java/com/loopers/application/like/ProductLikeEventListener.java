@@ -56,7 +56,11 @@ public class ProductLikeEventListener {
         Product product = productService.getProductWithLock(event.getProductId());
 
         // 좋아요 수만 감소 (ProductLike는 별도 트랜잭션에서 이미 삭제됨)
-        product.decrementLikeCount();
+        if (product.getLikeCount() > 0) {
+            product.decrementLikeCount();
+        } else {
+            log.warn("좋아요 수가 이미 0입니다. decrement 스킵 - ProductId: {}", event.getProductId());
+        }
 
         log.info("좋아요 취소 집계 처리 이벤트 완료 - ProductId: {}, 현재 좋아요 수: {}",
                 event.getProductId(), product.getLikeCount());

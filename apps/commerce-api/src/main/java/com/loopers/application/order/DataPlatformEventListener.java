@@ -5,6 +5,7 @@ import com.loopers.domain.order.event.OrderFailureEvent;
 import com.loopers.infrastructure.dataplatform.DataPlatform;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -20,6 +21,7 @@ public class DataPlatformEventListener {
      * 주문 완료 이벤트 처리
      * 트랜잭션 커밋 후에 데이터 플랫폼으로 전송
      */
+    @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleOrderCompleted(OrderCompletedEvent event) {
         log.info("주문 완료 이벤트 수신 - orderId: {}", event.orderId());
@@ -49,6 +51,7 @@ public class DataPlatformEventListener {
      * 주문 실패 이벤트 처리
      * 트랜잭션 커밋 후에 데이터 플랫폼으로 전송
      */
+    @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleOrderFailure(OrderFailureEvent event) {
         log.info("주문 실패 이벤트 수신 - orderId: {}", event.orderId());

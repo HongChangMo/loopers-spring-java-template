@@ -50,7 +50,7 @@ public class PaymentEventListener {
 
             // 보상 트랜잭션 실행 (포인트, 재고, 쿠폰 복구)
             Order order = orderService.getOrderById(event.getOrderId());
-            compensationService.compensateOrderWithPointRefund(order);
+            compensationService.compensateOrderWithPointRefund(order.getId());
 
             throw e;
         }
@@ -83,7 +83,7 @@ public class PaymentEventListener {
 
             // 보상 트랜잭션 실행 (재고, 쿠폰 복구)
             Order order = orderService.getOrderById(event.getOrderId());
-            compensationService.compensateOrder(order);
+            compensationService.compensateOrder(order.getId());
 
             throw e;
         }
