@@ -2,7 +2,6 @@ package com.loopers.application.payment;
 
 import com.loopers.domain.order.Order;
 import com.loopers.domain.order.OrderService;
-import com.loopers.domain.order.OrderStatus;
 import com.loopers.domain.order.event.OrderCompletedEvent;
 import com.loopers.domain.payment.*;
 import com.loopers.domain.payment.event.CardPaymentProcessingStartedEvent;
@@ -10,7 +9,6 @@ import com.loopers.domain.user.User;
 import com.loopers.domain.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,9 +27,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Component
 @RequiredArgsConstructor
 public class PaymentProcessor {
-
-    @Value("${payment.callback.base-url}")
-    private String callbackBaseUrl;
 
     private final TransactionTemplate transactionTemplate;
     private final PaymentService paymentService;
@@ -130,7 +125,7 @@ public class PaymentProcessor {
         });
 
         // TransactionTemplate.execute()는 항상 non-null 반환
-        // 2. PG 처리 이벤트 발행
+        // 2. PG 처리 이벤트 발행 (PaymentEventListener가 비동기로 처리)
         eventPublisher.publishEvent(
                 new CardPaymentProcessingStartedEvent(
                         payment.getPaymentId(),
@@ -140,10 +135,5 @@ public class PaymentProcessor {
                         cardNo
                 )
         );
-
-        // 3. 주문 상태 업데이트
-        if (payment.getStatus() == PaymentStatus.PROCESSING) {
-            order.updateStatus(OrderStatus.RECEIVED);
-        }
     }
 }

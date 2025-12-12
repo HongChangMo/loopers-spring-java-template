@@ -13,6 +13,7 @@ import com.loopers.domain.payment.event.CardPaymentRequestedEvent;
 import com.loopers.domain.payment.event.PointPaymentRequestedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -24,6 +25,9 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Component
 @RequiredArgsConstructor
 public class PaymentEventListener {
+
+    @Value("${payment.callback.base-url}")
+    private String callbackBaseUrl;
 
     private final PaymentProcessor paymentProcessor;
     private final PaymentService paymentService;
@@ -103,7 +107,7 @@ public class PaymentEventListener {
             Order order = orderService.getOrderById(event.getOrderId());
 
             // PG 호출 (이미 DB 커넥션 없음)
-            String callbackUrl = "http://localhost:8080/api/v1/payments/callback";
+            String callbackUrl = callbackBaseUrl + "/api/v1/payments/callback";
             PaymentResult result = paymentGateway.processPayment(
                     event.getUserId(),
                     payment,
