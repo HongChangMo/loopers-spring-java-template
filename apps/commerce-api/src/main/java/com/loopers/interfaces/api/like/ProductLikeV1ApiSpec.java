@@ -29,7 +29,7 @@ public interface ProductLikeV1ApiSpec {
             description = "상품에 대한 좋아요를 취소 처리한다"
     )
     ApiResponse<Object> cancelProductLike(
-            @Schema(name = "상품 좋아요 cㅟ소", description = "상품 좋아요 취소 시 필요한 상품 정보")
+            @Schema(name = "상품 좋아요 취소", description = "상품 좋아요 취소 시 필요한 상품 정보")
             Long productId,
             @Parameter(
                     name = "X-USER-ID",
