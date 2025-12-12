@@ -1,14 +1,19 @@
 package com.loopers.domain.coupon.event;
 
 import com.loopers.domain.Money;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 
-@Getter
-@RequiredArgsConstructor
-public class CouponUsedEvent {
-    private final Long userId;
-    private final Long couponId;
-    private final Long orderId;
-    private final Money discountAmount;
+public record CouponUsedEvent(
+        Long userId,
+        Long couponId,
+        Long orderId,
+        Money discountAmount
+) {
+    public static CouponUsedEvent of(
+            Long userId,
+            Long couponId,
+            Long orderId,
+            Money discountAmount
+    ) {
+        return new CouponUsedEvent(userId, couponId, orderId, discountAmount);
+    }
 }

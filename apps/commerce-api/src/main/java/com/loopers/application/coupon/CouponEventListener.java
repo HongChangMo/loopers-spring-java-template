@@ -21,13 +21,13 @@ public class CouponEventListener {
      * */
     @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
     public void handleCouponUsage(CouponUsedEvent event) {
-        log.info("쿠폰 사용 처리 이벤트 시작 - CouponId: {}, UserId: {}", event.getCouponId(), event.getUserId());
+        log.info("쿠폰 사용 처리 이벤트 시작 - CouponId: {}, UserId: {}", event.couponId(), event.userId());
 
         // 주문 트랜잭션 내에서 쿠폰 상태 변경
         IssuedCoupon issuedCoupon = issuedCouponService
-                .getIssuedCoupon(event.getUserId(), event.getCouponId());
+                .getIssuedCoupon(event.userId(), event.couponId());
         issuedCoupon.useCoupon();
 
-        log.info("쿠폰 사용 처리 이벤트 완료 - CouponId: {}, UserId: {}", event.getCouponId(), event.getUserId());
+        log.info("쿠폰 사용 처리 이벤트 완료 - CouponId: {}, UserId: {}", event.couponId(), event.userId());
     }
 }

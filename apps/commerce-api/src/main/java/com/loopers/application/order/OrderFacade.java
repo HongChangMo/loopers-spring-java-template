@@ -89,7 +89,7 @@ public class OrderFacade {
         // 8. 쿠폰 사용 처리
         if (issuedCoupon != null) {
             eventPublisher.publishEvent(
-                    new CouponUsedEvent(
+                    CouponUsedEvent.of(
                             user.getId(),
                             coupon.getId(),
                             savedOrder.getId(),
