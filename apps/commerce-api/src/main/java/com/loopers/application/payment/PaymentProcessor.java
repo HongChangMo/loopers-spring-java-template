@@ -3,12 +3,14 @@ package com.loopers.application.payment;
 import com.loopers.domain.order.Order;
 import com.loopers.domain.order.OrderService;
 import com.loopers.domain.order.OrderStatus;
+import com.loopers.domain.order.event.OrderCompletedEvent;
 import com.loopers.domain.payment.*;
 import com.loopers.domain.user.User;
 import com.loopers.domain.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -35,6 +37,7 @@ public class PaymentProcessor {
     private final PaymentGateway paymentGateway;
     private final UserService userService;
     private final OrderService orderService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 포인트 결제 처리 (새 트랜잭션에서 처리)
@@ -74,6 +77,17 @@ public class PaymentProcessor {
 
         // 6. 주문 완료 처리
         order.completeOrder();
+
+        // 7. 주문 완료 이벤트 발행 (데이터 플랫폼 전송용)
+        eventPublisher.publishEvent(
+                OrderCompletedEvent.of(
+                        order.getId(),
+                        user.getId(),
+                        order.getTotalPrice().getAmount().toString(),
+                        payment.getPaymentId(),
+                        payment.getPaymentType().name()
+                )
+        );
     }
 
     /**
