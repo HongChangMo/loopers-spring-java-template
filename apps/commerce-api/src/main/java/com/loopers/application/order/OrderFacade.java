@@ -1,5 +1,6 @@
 package com.loopers.application.order;
 
+import com.loopers.application.payment.PaymentProcessor;
 import com.loopers.domain.activity.event.UserActivityEvent;
 import com.loopers.domain.coupon.Coupon;
 import com.loopers.domain.coupon.CouponService;
@@ -8,9 +9,8 @@ import com.loopers.domain.issuedcoupon.IssuedCoupon;
 import com.loopers.domain.issuedcoupon.IssuedCouponService;
 import com.loopers.domain.order.Order;
 import com.loopers.domain.order.OrderService;
+import com.loopers.domain.order.event.OrderCreatedEvent;
 import com.loopers.domain.payment.PaymentType;
-import com.loopers.domain.payment.event.CardPaymentRequestedEvent;
-import com.loopers.domain.payment.event.PointPaymentRequestedEvent;
 import com.loopers.domain.product.Product;
 import com.loopers.domain.product.ProductService;
 import com.loopers.domain.user.User;
@@ -35,6 +35,7 @@ public class OrderFacade {
     private final CouponService couponService;
     private final IssuedCouponService issuedCouponService;
 
+    private final PaymentProcessor paymentProcessor;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
@@ -67,22 +68,17 @@ public class OrderFacade {
         // 6. 주문 저장 (Payment가 Order를 참조하기 전에 먼저 저장)
         Order savedOrder = orderService.registerOrder(order);
 
-        // 7. 결제 방식별 처리(이벤트 발행)
+        // 7. 결제 처리(Command)
         if (command.paymentType() == PaymentType.POINT) {
-            eventPublisher.publishEvent(
-                    new PointPaymentRequestedEvent(
-                            savedOrder.getId(),
-                            user.getId()
-                    )
+            paymentProcessor.processPointPayment(
+                    user.getId(),
+                    savedOrder.getId()
             );
         } else if (command.paymentType() == PaymentType.CARD) {
-            eventPublisher.publishEvent(
-                    new CardPaymentRequestedEvent(
-                            savedOrder.getId(),
-                            user.getId(),
-                            command.cardType(),
-                            command.cardNo()
-                    )
+            paymentProcessor.processCardPayment(
+                    savedOrder.getId(),
+                    command.cardType(),
+                    command.cardNo()
             );
         }
 
@@ -93,13 +89,22 @@ public class OrderFacade {
                             user.getId(),
                             coupon.getId(),
                             savedOrder.getId(),
-                            // 이미 쿠폰 할인이 적용된 금액
                             order.getTotalPrice()
                     )
             );
         }
 
-        // 사용자 행동 추적 이벤트 발행
+        // 9. 주문 생성 완료 이벤트 발행
+        eventPublisher.publishEvent(
+                OrderCreatedEvent.of(
+                        savedOrder.getId(),
+                        user.getId(),
+                        savedOrder.getTotalPrice().getAmount(),
+                        command.paymentType()
+                )
+        );
+
+        // 10. 사용자 행동 추적 이벤트 발행
         eventPublisher.publishEvent(
                 UserActivityEvent.of(
                         user.getUserId(),
