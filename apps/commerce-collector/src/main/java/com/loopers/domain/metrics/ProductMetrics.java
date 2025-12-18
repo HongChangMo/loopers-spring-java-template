@@ -58,4 +58,17 @@ public class ProductMetrics extends BaseEntity {
         }
         this.likeCount--;
     }
+
+    /**
+     * 주문 수 증가
+     */
+    public void incrementOrderCount(int quantity) {
+        this.orderCount++;
+
+        if( quantity <= 0 ) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "주문 수량은 항상 양수여야 합니다");
+        }
+
+        this.totalOrderQuantity += quantity;
+    }
 }

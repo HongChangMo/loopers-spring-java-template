@@ -28,6 +28,15 @@ public class ProductMetricsService {
     }
 
     /**
+     * 주문 수 증가
+     */
+    @Transactional
+    public void incrementOrderCount(Long productId, int quantity) {
+        ProductMetrics metrics = getOrCreateMetrics(productId);
+        metrics.incrementOrderCount(quantity);
+    }
+
+    /**
      * Metrics 조회 또는 생성
      */
     private ProductMetrics getOrCreateMetrics(Long productId) {

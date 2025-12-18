@@ -34,6 +34,17 @@ spring:
       concurrency: 3
       ack-mode: manual
 
+# commerce-api URL 설정
+external:
+  commerce-api:
+    url: http://localhost:8080
+
+# 재고 임계값 설정
+cache:
+  stock:
+    threshold:
+      quantity: 10      # 절대 임계값 (10개 이하면 캐시 갱신)
+
 ---
 spring:
   config:
