@@ -19,6 +19,11 @@ public class ProductMetricsRepositoryImpl implements ProductMetricsRepository {
     }
 
     @Override
+    public Optional<ProductMetrics> findByProductIdWithLock(Long productId) {
+        return productMetricsJpaRepository.findByProductIdWithLock(productId);
+    }
+
+    @Override
     public ProductMetrics save(ProductMetrics productMetrics) {
         return productMetricsJpaRepository.save(productMetrics);
     }

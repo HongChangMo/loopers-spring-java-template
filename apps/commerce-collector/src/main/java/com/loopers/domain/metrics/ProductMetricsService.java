@@ -46,13 +46,23 @@ public class ProductMetricsService {
     }
 
     /**
-     * Metrics 조회 또는 생성
+     * Metrics 조회 또는 생성 (비관적 락 사용)
+     * 동시성 제어: 같은 productId에 대한 동시 접근 시 순차 처리
      */
     private ProductMetrics getOrCreateMetrics(Long productId) {
-        return productMetricsRepository.findByProductId(productId)
+        // 비관적 락을 걸고 조회 (다른 트랜잭션은 대기)
+        return productMetricsRepository.findByProductIdWithLock(productId)
                 .orElseGet(() -> {
-                    ProductMetrics newMetrics = ProductMetrics.create(productId);
-                    return productMetricsRepository.save(newMetrics);
+                    try {
+                        // 락을 획득했고 없으면 생성
+                        ProductMetrics newMetrics = ProductMetrics.create(productId);
+                        return productMetricsRepository.save(newMetrics);
+                    } catch (Exception e) {
+                        // Unique constraint violation 시 재조회
+                        // (드물지만 락 획득 전 다른 트랜잭션이 생성한 경우)
+                        return productMetricsRepository.findByProductIdWithLock(productId)
+                                .orElseThrow(() -> new RuntimeException("ProductMetrics 조회 실패: " + productId, e));
+                    }
                 });
     }
 }
