@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
@@ -53,7 +54,7 @@ public class OutboxEventPublisher {
                     topic,
                     outboxEvent.getAggregateId(),  // Partition Key
                     message  // JSON String으로 전송
-            ).get();  // 동기 대기 (발행 보장)
+            ).get(10, TimeUnit.SECONDS);  // 타임아웃 설정
 
             // 발행 성공 시 상태 업데이트
             outboxEvent.markAsPublished();
@@ -75,7 +76,7 @@ public class OutboxEventPublisher {
 
         // 전체 메시지 구조 생성
         var message = java.util.Map.of(
-                "eventId", java.util.UUID.randomUUID().toString(),
+                "eventId", outboxEvent.getId().toString(),
                 "eventType", outboxEvent.getEventType(),
                 "aggregateType", outboxEvent.getAggregateType(),
                 "aggregateId", outboxEvent.getAggregateId(),

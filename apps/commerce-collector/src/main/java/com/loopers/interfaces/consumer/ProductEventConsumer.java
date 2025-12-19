@@ -1,5 +1,6 @@
 package com.loopers.interfaces.consumer;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.loopers.application.product.ProductEventHandler;
@@ -37,12 +38,26 @@ public class ProductEventConsumer {
             // JSON 파싱
             JsonNode jsonNode = objectMapper.readTree(message);
 
+            // 필수 필드 검증
+            if (!jsonNode.has("eventId") || !jsonNode.has("eventType") || !jsonNode.has("payload")) {
+                log.error("잘못된 메시지 형식 - 필수 필드 누락: {}", message);
+                acknowledgment.acknowledge();  // 재시도 방지
+                return;
+            }
+
             String eventId = jsonNode.get("eventId").asText();
             String eventType = jsonNode.get("eventType").asText();
             JsonNode payload = jsonNode.get("payload");
 
             // 이벤트 타입별 처리
             if( KafkaTopics.ProductDetail.PRODUCT_VIEWED.equals(eventType) ) {
+                // 이벤트별 필드 검증
+                if (!payload.has("productId")) {
+                    log.error("잘못된 PRODUCT_VIEWED 형식 - eventId: {}, payload: {}", eventId, payload);
+                    acknowledgment.acknowledge();  // 재시도 방지
+                    return;
+                }
+
                 Long productId = payload.get("productId").asLong();
                 productEventHandler.handleProductViewed(eventId, productId);
             }
@@ -51,9 +66,13 @@ public class ProductEventConsumer {
             acknowledgment.acknowledge();
             log.info("상품 이벤트 처리 완료 - eventId : {}", eventId);
 
+        } catch (JsonProcessingException e) {
+            // JSON 파싱 에러 - 재시도 불필요
+            log.error("JSON 파싱 실패 (재시도 안 함) - message: {}", message, e);
+            acknowledgment.acknowledge();
         } catch (Exception e) {
-            log.error("이벤트 처리 실패 - message: {}", message, e);
-            // 에러 발생 시 재처리를 위해 acknowledge 하지 않음
+            // Business 로직 에러 - 재시도
+            log.error("이벤트 처리 실패 (재시도) - message: {}", message, e);
             throw new RuntimeException("이벤트 처리 실패", e);
         }
     }

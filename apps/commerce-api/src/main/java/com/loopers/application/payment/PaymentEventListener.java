@@ -77,9 +77,8 @@ public class PaymentEventListener {
                 return;
             }
 
-            // 4. PG 성공 시 Payment 상태 업데이트
+            // 4. PG 성공 시 상태 업데이트 (JPA 변경 감지로 자동 저장)
             payment.startProcessing(result.transactionId());
-            paymentService.save(payment);
             order.updateStatus(OrderStatus.RECEIVED);
 
             log.info("[PG 호출 성공] paymentId={}, orderId={}, transactionId={}, 소요시간={}ms",

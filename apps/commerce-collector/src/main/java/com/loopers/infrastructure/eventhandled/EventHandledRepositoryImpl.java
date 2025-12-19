@@ -1,4 +1,4 @@
-package com.loopers.infrastructure.eventhadled;
+package com.loopers.infrastructure.eventhandled;
 
 import com.loopers.domain.eventhandled.EventHandled;
 import com.loopers.domain.eventhandled.EventHandledRepository;

@@ -1,4 +1,4 @@
-package com.loopers.infrastructure.eventhadled;
+package com.loopers.infrastructure.eventhandled;
 
 import com.loopers.domain.eventhandled.EventHandled;
 import org.springframework.data.jpa.repository.JpaRepository;

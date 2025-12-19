@@ -49,6 +49,7 @@ public class PaymentProcessor {
      * 5. 주문 완료 처리 (OrderStatus.COMPLETED)
      * 6. PaymentCompletedEvent 발행 (Domain Event)
      */
+    @Transactional
     public void processPointPayment(Long userId, Long orderId) {
         log.info("[포인트 결제 시작] userId={}, orderId={}", userId, orderId);
 
