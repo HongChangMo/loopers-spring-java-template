@@ -26,6 +26,9 @@ public class ProductMetrics extends BaseEntity {
     private Long orderCount = 0L;
 
     @Column(nullable = false)
+    private Long viewCount = 0L;
+
+    @Column(nullable = false)
     private Long totalOrderQuantity = 0L;
 
     @Builder
@@ -33,6 +36,7 @@ public class ProductMetrics extends BaseEntity {
         this.productId = productId;
         this.likeCount = 0L;
         this.orderCount = 0L;
+        this.viewCount = 0L;
         this.totalOrderQuantity = 0L;
     }
 
@@ -70,5 +74,12 @@ public class ProductMetrics extends BaseEntity {
         }
 
         this.totalOrderQuantity += quantity;
+    }
+
+    /**
+     * 상품 조회 수 증가
+     * */
+    public void incrementViewCount() {
+        this.viewCount++;
     }
 }

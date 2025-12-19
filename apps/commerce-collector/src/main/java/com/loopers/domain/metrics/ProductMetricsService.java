@@ -37,6 +37,15 @@ public class ProductMetricsService {
     }
 
     /**
+     * 상품 조회 수 증가
+     * */
+    @Transactional
+    public void incrementViewCount(Long productId) {
+        ProductMetrics metrics = getOrCreateMetrics(productId);
+        metrics.incrementViewCount();
+    }
+
+    /**
      * Metrics 조회 또는 생성
      */
     private ProductMetrics getOrCreateMetrics(Long productId) {
