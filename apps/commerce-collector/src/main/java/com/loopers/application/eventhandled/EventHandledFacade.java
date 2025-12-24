@@ -1,12 +1,14 @@
-package com.loopers.domain.eventhandled;
+package com.loopers.application.eventhandled;
 
+import com.loopers.domain.eventhandled.EventHandled;
+import com.loopers.domain.eventhandled.EventHandledRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
-public class EventHandledService {
+public class EventHandledFacade {
     private final EventHandledRepository eventHandledRepository;
 
     /**

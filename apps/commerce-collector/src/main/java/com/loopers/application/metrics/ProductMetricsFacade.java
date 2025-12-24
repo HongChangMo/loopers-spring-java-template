@@ -1,13 +1,27 @@
-package com.loopers.domain.metrics;
+package com.loopers.application.metrics;
 
+import com.loopers.domain.metrics.ProductMetrics;
+import com.loopers.domain.metrics.ProductMetricsRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+@Slf4j
 @Component
 @RequiredArgsConstructor
-public class ProductMetricsService {
+public class ProductMetricsFacade {
     private final ProductMetricsRepository productMetricsRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     /**
      * 좋아요 수 증가
@@ -43,6 +57,41 @@ public class ProductMetricsService {
     public void incrementViewCount(Long productId) {
         ProductMetrics metrics = getOrCreateMetrics(productId);
         metrics.incrementViewCount();
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void updateLikeCountBatch(Map<Long, Integer> likeDeltas) {
+
+        if (likeDeltas.isEmpty()) {
+            return;
+        }
+
+        String sql = """
+            INSERT INTO product_metrics
+                (product_id, like_count, order_count, view_count, total_order_quantity, created_at, updated_at)
+            VALUES (?, GREATEST(?, 0), 0, 0, 0, NOW(), NOW())
+            ON DUPLICATE KEY UPDATE
+                like_count = like_count + VALUES(like_count),
+                updated_at = NOW()
+            """;
+
+        List<Map.Entry<Long, Integer>> entries = new ArrayList<>(likeDeltas.entrySet());
+
+        jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
+                Map.Entry<Long, Integer> entry = entries.get(i);
+                ps.setLong(1, entry.getKey());      // product_id
+                ps.setInt(2, entry.getValue());      // like_count delta
+            }
+
+            @Override
+            public int getBatchSize() {
+                return entries.size();
+            }
+        });
+
+        log.info("ProductMetrics Upsert 완료 - {} 건", entries.size());
     }
 
     /**
