@@ -1,11 +1,10 @@
-package com.loopers.interfaces.consumer;
+package com.loopers.interfaces.consumer.product;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.loopers.application.like.ProductLikeEventHandler;
+import com.loopers.application.product.ProductEventHandler;
 import com.loopers.kafka.KafkaTopics;
-import com.loopers.kafka.KafkaTopics.ProductLike;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -18,22 +17,23 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ProductLikeEventConsumer {
-    private final ProductLikeEventHandler productLikeEventHandler;
+public class ProductEventConsumer {
+
+    private final ProductEventHandler productEventHandler;
     private final ObjectMapper objectMapper;
 
     @KafkaListener(
-            topics = KafkaTopics.PRODUCT_LIKE,
+            topics = KafkaTopics.PRODUCT,
             groupId = "commerce-collector-group",
             containerFactory = "kafkaListenerContainerFactory"
     )
-    public void consumeProductLikeEvent(
+    public void consumeProductEvent(
             @Payload String message,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             Acknowledgment acknowledgment
     ) {
         try {
-            log.info("좋아요 이벤트 수신 - key: {}, message: {}", key, message);
+            log.info("상품 이벤트 수신 - key: {}, message: {}", key, message);
 
             // JSON 파싱
             JsonNode jsonNode = objectMapper.readTree(message);
@@ -50,31 +50,21 @@ public class ProductLikeEventConsumer {
             JsonNode payload = jsonNode.get("payload");
 
             // 이벤트 타입별 처리
-            if (ProductLike.LIKE_ADDED.equals(eventType)) {
+            if( KafkaTopics.ProductDetail.PRODUCT_VIEWED.equals(eventType) ) {
                 // 이벤트별 필드 검증
                 if (!payload.has("productId")) {
-                    log.error("잘못된 LIKE_ADDED 형식 - eventId: {}, payload: {}", eventId, payload);
+                    log.error("잘못된 PRODUCT_VIEWED 형식 - eventId: {}, payload: {}", eventId, payload);
                     acknowledgment.acknowledge();  // 재시도 방지
                     return;
                 }
 
                 Long productId = payload.get("productId").asLong();
-                productLikeEventHandler.handleLikeAdded(eventId, productId);
-            } else if (ProductLike.LIKE_REMOVED.equals(eventType)) {
-                // 이벤트별 필드 검증
-                if (!payload.has("productId")) {
-                    log.error("잘못된 LIKE_REMOVED 형식 - eventId: {}, payload: {}", eventId, payload);
-                    acknowledgment.acknowledge();  // 재시도 방지
-                    return;
-                }
-
-                Long productId = payload.get("productId").asLong();
-                productLikeEventHandler.handleLikeRemoved(eventId, productId);
+                productEventHandler.handleProductViewed(eventId, productId);
             }
 
             // 수동 커밋
             acknowledgment.acknowledge();
-            log.info("이벤트 처리 완료 - eventId: {}", eventId);
+            log.info("상품 이벤트 처리 완료 - eventId : {}", eventId);
 
         } catch (JsonProcessingException e) {
             // JSON 파싱 에러 - 재시도 불필요

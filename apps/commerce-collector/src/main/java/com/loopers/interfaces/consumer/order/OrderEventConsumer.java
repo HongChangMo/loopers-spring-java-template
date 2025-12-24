@@ -1,4 +1,4 @@
-package com.loopers.interfaces.consumer;
+package com.loopers.interfaces.consumer.order;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
