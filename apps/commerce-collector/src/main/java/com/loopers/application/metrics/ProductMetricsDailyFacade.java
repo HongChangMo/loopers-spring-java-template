@@ -17,8 +17,9 @@ public class ProductMetricsDailyFacade {
 
     /**
      * 일자별 좋아요 증감 배치 업데이트
+     * 상위 트랜잭션에 참여하여 원자성 보장
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRED)
     public void updateLikeDeltaBatch(Map<Long, Integer> likeDeltas, LocalDate metricDate) {
         productMetricsDailyRepository.upsertLikeDeltas(likeDeltas, metricDate);
     }
@@ -34,7 +35,7 @@ public class ProductMetricsDailyFacade {
     /**
      * 일자별 주문 증감 배치 업데이트
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRED)
     public void updateOrderDeltaBatch(Map<Long, Integer> orderDeltas, LocalDate metricDate) {
         productMetricsDailyRepository.upsertOrderDeltas(orderDeltas, metricDate);
     }

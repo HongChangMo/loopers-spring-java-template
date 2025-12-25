@@ -59,7 +59,11 @@ public class ProductMetricsFacade {
         metrics.incrementViewCount();
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    /**
+     * 좋아요 수 배치 업데이트 (UPSERT)
+     * 상위 트랜잭션에 참여하여 원자성 보장
+     */
+    @Transactional(propagation = Propagation.REQUIRED)
     public void updateLikeCountBatch(Map<Long, Integer> likeDeltas) {
 
         if (likeDeltas.isEmpty()) {
@@ -92,6 +96,47 @@ public class ProductMetricsFacade {
         });
 
         log.info("ProductMetrics Upsert 완료 - {} 건", entries.size());
+    }
+
+    /**
+     * 주문 수 배치 업데이트 (UPSERT)
+     * 상위 트랜잭션에 참여하여 원자성 보장
+     */
+    @Transactional(propagation = Propagation.REQUIRED)
+    public void updateOrderCountBatch(Map<Long, Integer> orderDeltas) {
+
+        if (orderDeltas.isEmpty()) {
+            return;
+        }
+
+        String sql = """
+            INSERT INTO product_metrics
+                (product_id, like_count, order_count, view_count, total_order_quantity, created_at, updated_at)
+            VALUES (?, 0, ?, 0, ?, NOW(), NOW())
+            ON DUPLICATE KEY UPDATE
+                order_count = order_count + VALUES(order_count),
+                total_order_quantity = total_order_quantity + VALUES(total_order_quantity),
+                updated_at = NOW()
+            """;
+
+        List<Map.Entry<Long, Integer>> entries = new ArrayList<>(orderDeltas.entrySet());
+
+        jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
+                Map.Entry<Long, Integer> entry = entries.get(i);
+                ps.setLong(1, entry.getKey());      // product_id
+                ps.setInt(2, entry.getValue());      // order_count delta (주문 건수)
+                ps.setInt(3, entry.getValue());      // total_order_quantity delta (주문 수량)
+            }
+
+            @Override
+            public int getBatchSize() {
+                return entries.size();
+            }
+        });
+
+        log.info("ProductMetrics 주문 Upsert 완료 - {} 건", entries.size());
     }
 
     /**

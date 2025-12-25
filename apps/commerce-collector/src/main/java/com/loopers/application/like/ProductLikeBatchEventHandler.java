@@ -10,6 +10,7 @@ import com.loopers.kafka.KafkaTopics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -26,68 +27,93 @@ public class ProductLikeBatchEventHandler {
     private final ProductMetricsFacade productMetricsFacade;
     private final ProductMetricsDailyFacade productMetricsDailyFacade;
 
+    @Transactional
     public void handleProductLikeBatch(List<ProductLikeEvent> events) {
-        // 1. 미처리 이벤트만 필터링 (배치 간 중복 방지)
-        List<ProductLikeEvent> unprocessedEvents = events.stream()
-                .filter(event -> {
-                    if (eventHandledFacade.isAlreadyHandled(event.eventId())) {
-                        log.info("이미 처리된 이벤트 스킵 - eventId: {}", event.eventId());
-                        return false;
-                    }
-                    return true;
-                })
-                .collect(Collectors.toList());
+        try {
+            log.info("좋아요 배치 처리 시작 - 전체 이벤트 수: {}", events.size());
 
-        if (unprocessedEvents.isEmpty()) {
-            log.info("처리할 이벤트 없음 (모두 중복)");
-            return;
+            List<ProductLikeEvent> unprocessedEvents = filterUnprocessedEvents(events);
+            if (unprocessedEvents.isEmpty()) {
+                log.info("처리할 이벤트 없음 (모두 중복)");
+                return;
+            }
+
+            Map<String, ProductLikeEvent> uniqueEvents = removeDuplicates(unprocessedEvents);
+            Map<Long, Integer> likeDeltas = calculateLikeDeltas(uniqueEvents.values());
+
+            log.info("증감량 계산 완료 - 처리 대상 상품 수: {}", likeDeltas.size());
+
+            updateMetrics(likeDeltas);
+            markEventsAsHandled(uniqueEvents.values());
+
+            log.info("좋아요 배치 처리 완료 - 전체: {}, 미처리: {}, 실제 처리: {}",
+                    events.size(), unprocessedEvents.size(), uniqueEvents.size());
+
+        } catch (Exception e) {
+            log.error("좋아요 배치 처리 실패 - 전체 트랜잭션 롤백됨 | 이벤트 수: {}", events.size(), e);
+            throw new RuntimeException("좋아요 배치 처리 실패", e);
         }
+    }
 
-        // 2. 같은 배치 내 중복 제거
-        Map<String, ProductLikeEvent> uniqueEvents = unprocessedEvents.stream()
+    private List<ProductLikeEvent> filterUnprocessedEvents(List<ProductLikeEvent> events) {
+        return events.stream()
+                .filter(event -> !eventHandledFacade.isAlreadyHandled(event.eventId()))
+                .collect(Collectors.toList());
+    }
+
+    private Map<String, ProductLikeEvent> removeDuplicates(List<ProductLikeEvent> events) {
+        return events.stream()
                 .collect(Collectors.toMap(
                         ProductLikeEvent::eventId,
                         event -> event,
-                        (existing, replacement) -> existing // 중복 시 기존 것 유지
+                        (existing, replacement) -> existing
                 ));
+    }
 
-        // 3. 증감량 계산
+    private Map<Long, Integer> calculateLikeDeltas(Iterable<ProductLikeEvent> events) {
         Map<Long, Integer> likeDeltas = new HashMap<>();
 
-        for(ProductLikeEvent event : uniqueEvents.values()) {
-            Long productId = event.productId();
-            String eventType = event.eventType();
-
-            int delta = 0;
-            if (KafkaTopics.ProductLike.LIKE_ADDED.equals(eventType)) {
-                delta = 1;
-            } else if (KafkaTopics.ProductLike.LIKE_REMOVED.equals(eventType)) {
-                delta = -1;
-            }
-
-            // 증감 처리
-            likeDeltas.merge(productId, delta, Integer::sum);
+        for (ProductLikeEvent event : events) {
+            int delta = calculateDelta(event.eventType());
+            likeDeltas.merge(event.productId(), delta, Integer::sum);
         }
 
-        // 4. ProductMetrics 배치 업데이트 처리 (전체 누계만)
+        return likeDeltas;
+    }
+
+    private int calculateDelta(String eventType) {
+        if (KafkaTopics.ProductLike.LIKE_ADDED.equals(eventType)) {
+            return 1;
+        } else if (KafkaTopics.ProductLike.LIKE_REMOVED.equals(eventType)) {
+            return -1;
+        }
+        return 0;
+    }
+
+    private void updateMetrics(Map<Long, Integer> likeDeltas) {
         productMetricsFacade.updateLikeCountBatch(likeDeltas);
+        log.info("ProductMetrics 업데이트 완료");
 
-        // 5. ProductMetricsDaily 배치 업데이트 처리 (일자별 증감 이력만)
         productMetricsDailyFacade.updateLikeDeltaBatch(likeDeltas, LocalDate.now());
+        log.info("ProductMetricsDaily 업데이트 완료");
+    }
 
-        // 6. 처리 완료 기록 (배치로 등록)
-        List<EventHandledInfo> eventHandledInfos = uniqueEvents.values().stream()
-                .map(event -> EventHandledInfo.of(
-                        event.eventId(),
-                        event.eventType(),
-                        AggregateTypes.PRODUCT_LIKE,
-                        event.productId().toString()
-                ))
-                .collect(Collectors.toList());
-
+    private void markEventsAsHandled(Iterable<ProductLikeEvent> events) {
+        List<EventHandledInfo> eventHandledInfos = createEventHandledInfos(events);
         eventHandledFacade.markAsHandledBatch(eventHandledInfos);
+        log.info("이벤트 처리 완료 기록");
+    }
 
-        log.info("배치 처리 완료 - 전체: {}, 미처리: {}, 실제 처리: {}",
-                events.size(), unprocessedEvents.size(), uniqueEvents.size());
+    private List<EventHandledInfo> createEventHandledInfos(Iterable<ProductLikeEvent> events) {
+        List<EventHandledInfo> infos = new java.util.ArrayList<>();
+        for (ProductLikeEvent event : events) {
+            infos.add(EventHandledInfo.of(
+                    event.eventId(),
+                    event.eventType(),
+                    AggregateTypes.PRODUCT_LIKE,
+                    event.productId().toString()
+            ));
+        }
+        return infos;
     }
 }
