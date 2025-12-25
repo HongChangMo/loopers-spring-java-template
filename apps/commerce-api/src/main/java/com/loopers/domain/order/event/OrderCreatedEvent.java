@@ -16,7 +16,8 @@ public record OrderCreatedEvent(
 ) {
     public record OrderItem(
             Long productId,
-            Integer quantity
+            Integer quantity,
+            BigDecimal price  // 상품 단가
     ) {}
 
     public static OrderCreatedEvent of(

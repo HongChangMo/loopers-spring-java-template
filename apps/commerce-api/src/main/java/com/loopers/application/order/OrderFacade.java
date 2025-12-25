@@ -158,11 +158,12 @@ public class OrderFacade {
      */
     private void publishOrderCreatedEvent(Order savedOrder, User user, OrderCommand command) {
         try {
-            // 주문 상품 정보를 이벤트용 OrderItem으로 변환
-            var orderItems = command.items().stream()
+            // 저장된 Order의 OrderItem에서 실제 가격 정보 포함
+            var orderItems = savedOrder.getOrderItems().stream()
                     .map(item -> new OrderCreatedEvent.OrderItem(
-                            item.productId(),
-                            item.quantity()
+                            item.getProduct().getId(),
+                            item.getQuantity(),
+                            item.getPrice().getAmount()  // 상품 단가
                     ))
                     .toList();
 
