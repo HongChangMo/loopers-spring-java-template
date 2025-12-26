@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.loopers.application.order.OrderBatchEventHandler;
+import com.loopers.confg.kafka.KafkaConfig;
 import com.loopers.interfaces.consumer.order.dto.OrderEvent;
 import com.loopers.kafka.KafkaTopics;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,7 @@ public class OrderBatchEventConsumer {
     @KafkaListener(
             topics = KafkaTopics.ORDER,
             groupId = "commerce-collector-batch-group",
-            containerFactory = "batchKafkaListenerContainerFactory"
+            containerFactory = KafkaConfig.BATCH_LISTENER
     )
     public void consumeOrderBatch(
             @Payload List<String> messages,
