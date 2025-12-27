@@ -4,6 +4,7 @@ import com.loopers.domain.metrics.ProductMetricsDaily;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -16,5 +17,5 @@ public interface ProductMetricsDailyJpaRepository extends JpaRepository<ProductM
 
     @Modifying
     @Query("delete from ProductMetricsDaily m where m.metricDate < :cutoffDate")
-    int deleteByMetricDateBefore(LocalDate cutoffDate);
+    int deleteByMetricDateBefore(@Param("cutoffDate") LocalDate cutoffDate);
 }
