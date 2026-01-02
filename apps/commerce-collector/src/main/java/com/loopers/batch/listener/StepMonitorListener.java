@@ -29,7 +29,7 @@ public class StepMonitorListener implements StepExecutionListener {
                     .map(Throwable::getMessage)
                     .filter(Objects::nonNull)
                     .collect(Collectors.joining("\n"));
-            log.info(
+            log.error(
                 """
                    [에러 발생]
                    jobName: {}

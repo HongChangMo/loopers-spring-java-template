@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface ProductMetricsMonthlyJpaRepository extends JpaRepository<ProductMetricsMonthly, Integer> {
+public interface ProductMetricsMonthlyJpaRepository extends JpaRepository<ProductMetricsMonthly, Long> {
 
     @Modifying
     @Query("""

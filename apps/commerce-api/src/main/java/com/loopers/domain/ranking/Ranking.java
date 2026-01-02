@@ -10,7 +10,7 @@ public class Ranking {
     private final Double score;
     private final Long totalLikeCount;
     private final Long totalViewCount;
-    private final Long totalOrderCoun;
+    private final Long totalOrderCount;
 
     @Builder
     public Ranking(
@@ -19,14 +19,14 @@ public class Ranking {
             Double score,
             Long totalLikeCount,
             Long totalViewCount,
-            Long totalOrderCoun
+            Long totalOrderCount
     ) {
         this.rank = rank;
         this.productId = productId;
         this.score = score;
         this.totalLikeCount = totalLikeCount;
         this.totalViewCount = totalViewCount;
-        this.totalOrderCoun = totalOrderCoun;
+        this.totalOrderCount = totalOrderCount;
     }
 
     public static Ranking of(

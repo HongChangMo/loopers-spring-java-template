@@ -60,7 +60,9 @@ public class ProductMetricsWeeklyRepositoryImpl implements ProductMetricsWeeklyR
                 ps.setLong(6, metrics.getTotalLikeCount());
                 ps.setLong(7, metrics.getTotalViewCount());
                 ps.setLong(8, metrics.getTotalOrderCount());
-                ps.setTimestamp(9, Timestamp.from(metrics.getAggregatedAt().toInstant()));
+                ps.setTimestamp(9, metrics.getAggregatedAt() != null
+                        ? Timestamp.from(metrics.getAggregatedAt().toInstant())
+                        : new Timestamp(System.currentTimeMillis()));
             }
 
             @Override
